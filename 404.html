@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Shortcut</title>
+<script>
+  // Every path under /shortcut/ that is not a file is served by this page
+  // (GitHub Pages' 404 fallback), so each shortcut gets its own path and scope.
+  // Installed as an app, the page redirects to the target at once.
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var to = null;
+    try {
+      var url = new URL(params.get("to"));
+      if (url.protocol === "https:") to = url.href;
+    } catch (e) {}
+    if (to && matchMedia("(display-mode: standalone)").matches) {
+      location.replace(to);
+    }
+    window.shortcutTarget = to;
+  })();
+</script>
+<style>
+  :root { --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de; --warn: #9a6700; --error: #cf222e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --line: #30363d; --warn: #d29922; --error: #f85149; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 32rem; margin: 0 auto; padding: 32px 16px; }
+  .app { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+  .app img { width: 72px; height: 72px; border-radius: 50%; background: #fff; object-fit: contain; border: 1px solid var(--line); }
+  .app h1 { margin: 0; font-size: 1.4rem; }
+  .app p { margin: 0; color: var(--muted); word-break: break-all; font-size: .9rem; }
+  ol { padding-left: 1.2rem; }
+  .warn { color: var(--warn); }
+  .error { color: var(--error); }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <div class="app" id="app" hidden>
+    <img id="icon" alt="">
+    <div>
+      <h1 id="name"></h1>
+      <p id="target"></p>
+    </div>
+  </div>
+  <div id="install" hidden>
+    <p>Install as an app:</p>
+    <ol>
+      <li>Chrome menu ⋮ → <b>Add to Home screen</b></li>
+      <li>Choose <b>Install</b> (not “Create shortcut”)</li>
+    </ol>
+    <p><a id="open">Open the target in this tab</a></p>
+  </div>
+  <p id="message"></p>
+</main>
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var to = window.shortcutTarget;
+    var message = document.getElementById("message");
+
+    function show(text, cls) {
+      message.textContent = text;
+      message.className = cls;
+    }
+
+    if (!to) {
+      show("Not a valid shortcut: the “to” parameter must be an https:// address. ", "error");
+      var link = document.createElement("a");
+      link.href = "/shortcut/";
+      link.textContent = "Create a shortcut";
+      message.appendChild(link);
+      return;
+    }
+
+    // A trailing slash keeps the scope to this shortcut's own path.
+    if (!location.pathname.endsWith("/")) {
+      location.replace(location.pathname + "/" + location.search);
+      return;
+    }
+
+    var host = new URL(to).hostname;
+    var name = (params.get("name") || "").trim() || host;
+    var icon = (params.get("icon") || "").trim();
+
+    // An emoji becomes Google's Noto emoji image, a missing icon the site's favicon.
+    if (!icon) {
+      icon = "https://www.google.com/s2/favicons?sz=256&domain=" + encodeURIComponent(host);
+    } else if (!/^https:\/\//.test(icon)) {
+      var codes = Array.from(icon)
+        .map(function (c) { return c.codePointAt(0); })
+        .filter(function (c) { return c !== 0xfe0f; })
+        .map(function (c) { return c.toString(16); });
+      icon = "https://fonts.gstatic.com/s/e/notoemoji/latest/" + codes.join("_") + "/512.png";
+    }
+
+    document.title = name;
+    document.getElementById("name").textContent = name;
+    document.getElementById("target").textContent = to;
+    document.getElementById("open").href = to;
+    document.getElementById("app").hidden = false;
+
+    var img = document.getElementById("icon");
+    img.onerror = function () {
+      show("The icon could not be loaded, so Chrome cannot install this shortcut.", "error");
+    };
+    img.onload = function () {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var scope = location.origin + location.pathname;
+      var manifest = {
+        id: scope,
+        name: name,
+        short_name: name,
+        start_url: scope + location.search,
+        scope: scope,
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#ffffff",
+        icons: [{ src: icon, sizes: w + "x" + h }]
+      };
+      var link = document.createElement("link");
+      link.rel = "manifest";
+      link.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(manifest));
+      document.head.appendChild(link);
+      document.getElementById("install").hidden = false;
+
+      if (w < 144 || w !== h) {
+        show("The icon is " + w + "×" + h + " px. Chrome needs a square icon of at least 144 px to install it.", "warn");
+      }
+    };
+    img.src = icon;
+  })();
+</script>
+</body>
+</html>

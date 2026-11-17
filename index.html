@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shortcut</title>
+<style>
+  :root { --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --line: #30363d; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 32rem; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 1.4rem; margin: 0 0 8px; }
+  p { color: var(--muted); margin: 0 0 24px; }
+  label { display: block; font-weight: 600; margin: 16px 0 4px; }
+  small { display: block; color: var(--muted); font-weight: 400; }
+  input { box-sizing: border-box; width: 100%; padding: 10px; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 8px; }
+  a.button { display: inline-block; margin-top: 24px; padding: 10px 16px; border-radius: 8px; background: var(--fg); color: var(--bg); text-decoration: none; font-weight: 600; }
+  a.button[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+  code { display: block; margin-top: 16px; word-break: break-all; font-size: .8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Shortcut</h1>
+  <p>Turns any https:// address into a home screen app that opens it in its own window.</p>
+
+  <label for="to">Target <small>The address the app opens</small></label>
+  <input id="to" type="url" placeholder="https://…" autocomplete="off">
+
+  <label for="name">Name <small>The label under the icon</small></label>
+  <input id="name" type="text" autocomplete="off">
+
+  <label for="icon">Icon <small>An emoji or the https:// address of a square image (at least 144 px). Empty uses the site's favicon.</small></label>
+  <input id="icon" type="text" autocomplete="off">
+
+  <a class="button" id="go" aria-disabled="true">Open shortcut page</a>
+  <code id="link"></code>
+</main>
+<script>
+  var fields = ["to", "name", "icon"].map(function (id) { return document.getElementById(id); });
+  var go = document.getElementById("go");
+  var out = document.getElementById("link");
+
+  function slug(text) {
+    return text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "app";
+  }
+
+  function update() {
+    var to = fields[0].value.trim(), name = fields[1].value.trim(), icon = fields[2].value.trim();
+    var valid = false;
+    try { valid = new URL(to).protocol === "https:"; } catch (e) {}
+    if (!valid) {
+      go.setAttribute("aria-disabled", "true");
+      go.removeAttribute("href");
+      out.textContent = "";
+      return;
+    }
+    var params = new URLSearchParams({ to: to });
+    if (name) params.set("name", name);
+    if (icon) params.set("icon", icon);
+    var url = new URL(slug(name || new URL(to).hostname) + "/?" + params, location.href).href;
+    go.href = url;
+    go.setAttribute("aria-disabled", "false");
+    out.textContent = url;
+  }
+
+  fields.forEach(function (f) { f.addEventListener("input", update); });
+</script>
+</body>
+</html>
